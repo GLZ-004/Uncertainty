@@ -97,8 +97,16 @@
 
 `git checkout <file>` 如果不小心删错了，可以用此命令将工作区文件恢复至版本库文件版本
 
+> 分支
 
+`git branch` 查看分支
 
+`git branch <name>` 创建分支
 
+`git checkout <name>` 或 `git switch <name>` 切换分支
 
+`git checkout -b <name>` 或 `git switch -c <name>` 创建+切换分支
 
+`git merge <name>` 合并某分支到当前分支
+
+`git branch -d <name>` 删除分支
