@@ -45,9 +45,13 @@
 
 `git init` 为当前目录的文件夹初始化（本地初始化）
 
+`git remote add origin git@github.com:username/respository.git` 将本地库与远程库建立联系（这里使用的是SSH密钥）
+`
+
 `git clone <github url>` 从 github 上克隆文件
 
 > 修改文件
+
 `git status` 查看目前修改上传状态
 
 `git diff` 查看所有修改
@@ -72,7 +76,22 @@
 
 `git reflog` 查看所有本地仓库的变更历史 
 
+`git diff` 查看工作区文件与最新版本库文件的不同
 
-`git pull `
+`git checkout -- <file>` 撤销工作区的修改
 
-`git push `
+`git reset HEAD <file>` 撤销暂存区的修改
+
+> 删除文件
+
+1. `rm <file>` 将文件从工作区删除 
+2. `git rm <file>` 或 `git add <file>` 将信息同步到暂存区
+3. `git commit -m "提交信息"` 将信息同步到本地版本库
+
+`git checkout <file>` 如果不小心删错了，可以用此命令将工作区文件恢复至版本库文件版本
+
+
+
+
+
+
