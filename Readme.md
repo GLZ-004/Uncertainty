@@ -41,14 +41,21 @@
 
 `git config --global  --list` 查看当前用户（global）配置
 
-> 初始化文件
+> 初始化文件和远程库的交互
 
 `git init` 为当前目录的文件夹初始化（本地初始化）
 
-`git remote add origin git@github.com:username/respository.git` 将本地库与远程库建立联系（这里使用的是SSH密钥）
-`
+`git remote add origin <url>` 将本地库与远程库建立联系
 
-`git clone <github url>` 从 github 上克隆文件
+`git remote rm origin` 解除本地库与远程库的联系
+
+`git clone <url>` 从 github 上克隆文件
+
+`git push -u origin master` 和 `git push origin master` 将本地库所有内容同步至远程库 master 分支上（-u 表示把本地的相应分支与远程库的 master关联起来,关联一次即可，后续可不用写）
+
+`git pull origin main` 拉取远程库的最新修改并合并到本地库中
+
+`git remote -v` 查看远程库信息
 
 > 修改文件
 
