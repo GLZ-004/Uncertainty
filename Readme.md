@@ -58,6 +58,21 @@
 
 `git commit -m "信息提示"` 将缓存区里的所有文件添加至本地仓库
 
+> 时光穿梭
+
+`git log` 查看 commit 提交历史，只能查看当前版本之前的历史，可确定要回到哪个版本
+
+`git reset --hard HEAD^` 回到上一个 commit 版本
+
+`git reset --hard HEAD^^` 回到上上个 commit 版本，以此类推
+
+`git reset --hard HEAD~100` 回到向上100个 commit 版本
+
+`git reset --hard <版本号>` 跳转到版本号为<版本号>的版本
+
+`git reflog` 查看所有本地仓库的变更历史 
+
+
 `git pull `
 
 `git push `
