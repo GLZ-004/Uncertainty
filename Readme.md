@@ -41,6 +41,10 @@
 
 `git config --global  --list` 查看当前用户（global）配置
 
+`git config --global color.ui true` 让Git显示颜色（好像默认就会显示）
+
+
+
 > 初始化文件和远程库的交互
 
 `git init` 为当前目录的文件夹初始化（本地初始化）
@@ -107,13 +111,21 @@
 
 `git checkout -b <name>` 或 `git switch -c <name>` 创建+切换分支
 
+`git switch -c dev origin/dev` 创建并切换到一个新的本地分支（dev），同时使其跟踪远程分支 (dev) 
+
 `git merge <name>` 合并某分支到当前分支,用于简单的直线合并
 
 `git merge --no-ff <name>` 禁用fast forword的合并分支，可保留分支合并历史信息，用于非直线合并，团队开发建议用此命令
 
-`git branch -d <name>` 删除分支
+`git branch -d <name>` 删除一个已经被合并过的分支
+
+`git branch -D <name>` 强制删除一个没有被合并过的分支
 
 `git log --graph` 查看分支合并图
+
+`git log --graph --pretty=oneline --abbrev-commit` 以图形化的方式显示 Git 提交历史，每个提交只显示一行简洁的信息
+
+`git rebase` 把本地未push的分叉提交历史整理成直线，使得我们在查看历史提交的变化时更容易。
 
 > BUG 分支
 >> 适用场景：当今在dev分支上的工作尚未完成，突然被告知需要修复master分支上的一个BUG。
@@ -128,4 +140,25 @@
    * `git stash pop <stash id>` 恢复至特定储存，同时删除储存在 stash 里的工作现场
    * `git stash drop` 删除最新的储存
    * `git stash drop <stash id>` 删除特定的储存
-  4. 把修改的 bug 应用到 dev 分支中：`git cherry-pick <bug commit id>` 复制一个特定的提交到当前分支
+4. 把修改的 bug 应用到 dev 分支中：`git cherry-pick <bug commit id>` 复制一个特定的提交到当前分支
+
+> 给 commit 加上标签
+>> 创建的标签都只存储在本地，不会自动推送到远程
+
+`git tag <tagname>` 新建一个标签，默认为HEAD
+
+`git tag <tagname> <commit id>` 为 commit id 新建一个名字为 tagname 的标签
+
+`git tag -a <tagname> -m "说明文字" <commit id>` 给指定 commit 添加标签，并附带说明文字
+
+`git show <tagname>` 查看标签信息
+
+`git tag` 查看所有标签
+
+`git push origin <tagname>` 推送一个本地标签到远程
+
+`git push origin --tags` 推送全部本地标签到远程
+
+`git tag -d <tagname>` 删除一个本地标签
+
+`git push origin :refs/tags/<tagname>` 删除一个远程标签
