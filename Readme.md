@@ -107,6 +107,25 @@
 
 `git checkout -b <name>` 或 `git switch -c <name>` 创建+切换分支
 
-`git merge <name>` 合并某分支到当前分支
+`git merge <name>` 合并某分支到当前分支,用于简单的直线合并
+
+`git merge --no-ff <name>` 禁用fast forword的合并分支，可保留分支合并历史信息，用于非直线合并，团队开发建议用此命令
 
 `git branch -d <name>` 删除分支
+
+`git log --graph` 查看分支合并图
+
+> BUG 分支
+>> 适用场景：当今在dev分支上的工作尚未完成，突然被告知需要修复master分支上的一个BUG。
+
+1. 先在 dev 分支 `git stash` 一下保留现有工作区。
+2. 切换到 master 分支上新建一个 bug 分支来修复 bug, 然后将 bug 分支合并到 master 分支。
+3. 修复完成后切换至 dev 分支，使用以下命令恢复至原有工作区继续工作。
+   * `git stash list` 查看工作现场保存情况
+   * `git stash apply` 恢复至最新储存，但是工作现场仍储存在 stash 里
+   * `git stash apply <stash id>` 恢复至特定储存，但是工作现场仍储存在 stash 里
+   * `git stash pop` 恢复至原有工作区，同时删除储存在 stash 里的工作现场
+   * `git stash pop <stash id>` 恢复至特定储存，同时删除储存在 stash 里的工作现场
+   * `git stash drop` 删除最新的储存
+   * `git stash drop <stash id>` 删除特定的储存
+  4. 把修改的 bug 应用到 dev 分支中：`git cherry-pick <bug commit id>` 复制一个特定的提交到当前分支
