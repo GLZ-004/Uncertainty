@@ -1,6 +1,7 @@
 import math
 import numpy as np # 用于统计计算，需要安装 pip install numpy
 import sympy # 用于符号计算和求导，需要安装 pip install sympy
+from decimal import Decimal, getcontext, ROUND_HALF_EVEN, ROUND_HALF_UP, ROUND_HALF_DOWN # 导入 decimal 模块及舍入模式
 
 # --- 常量和辅助函数 ---
 # t因子，这里只是一个默认值，实际应该由用户输入或根据自由度查询表
@@ -12,6 +13,73 @@ K_TRIANGULAR = math.sqrt(6)
 # 正态分布，置信水平为95%
 K_NORMAL_DISTRIBUTION = 2 # 可以根据需要调整
 
+def custom_round_decimal(number: float, decimals: int) -> float:
+    """
+    使用 decimal 模块实现“四舍六入五成双”并包含“5后若有数字就入”的舍入规则。
+    
+    Args:
+        number (float): 待舍入的数字。
+        decimals (int): 小数点后保留的位数。
+    Returns:
+        float: 舍入后的数字。
+    """
+    if decimals < 0:
+        raise ValueError("decimals 必须是非负整数。")
+    
+    # 1. 将浮点数转换为 Decimal，避免浮点数精度问题。使用 str(number) 是为了避免二进制浮点数转换误差。
+    d_num_str = str(number)
+    d_num = Decimal(d_num_str)
+
+    # 2. 构造一个代表所需精度的 Decimal 对象，例如 '0.01' 用于两位小数
+    if decimals == 0:
+        quantize_to = Decimal('1')
+    else:
+        # 创建一个精确到 decimals 位的 Decimal，例如 Decimal('0.001') for decimals=3
+        quantize_to = Decimal('1e-{}'.format(decimals))
+
+    # 3. 检查舍入位及其之后是否有非零数字
+    # 获取数字的字符串表示，并确保小数点后有足够的位数进行判断
+    dot_index = d_num_str.find('.')
+    if dot_index == -1: # 如果是整数，直接返回，不需要小数舍入
+        return float(d_num)
+
+    # 确保字符串有足够的长度来检查舍入位
+    # 需要检查的数字在小数点后 decimals + 1 位
+    required_length_after_dot = decimals + 1
+    current_length_after_dot = len(d_num_str) - dot_index - 1
+    
+    # 如果当前小数位数不足以达到舍入位，则认为其后都是0，不需要特殊处理
+    if current_length_after_dot < required_length_after_dot:
+        # 直接使用 ROUND_HALF_EVEN 对原始 Decimal 进行量化
+        return float(d_num.quantize(quantize_to, rounding=ROUND_HALF_EVEN))
+
+
+    # 提取舍入位（decimals + 1 位）的数字
+    # 例如：1.2345, decimals=2, target_digit_index = dot_index + 2 + 1 = 4
+    target_digit_index_in_str = dot_index + required_length_after_dot
+    
+    digit_to_check_char = d_num_str[target_digit_index_in_str]
+    digit_to_check = int(digit_to_check_char)
+
+    # 检查 5 后面是否有非零数字
+    # 例如 1.2351 -> "1", 1.2350 -> ""
+    rest_of_digits_str = d_num_str[target_digit_index_in_str + 1:].strip('0')
+    has_non_zero_after_five = bool(rest_of_digits_str)
+
+    # 4. 根据规则进行舍入
+    if digit_to_check < 5:
+        # 四舍：直接向下舍入
+        return float(d_num.quantize(quantize_to, rounding=ROUND_HALF_DOWN))
+    elif digit_to_check > 5:
+        # 六入：直接向上舍入
+        return float(d_num.quantize(quantize_to, rounding=ROUND_HALF_UP))
+    else: # digit_to_check == 5
+        if has_non_zero_after_five:
+            # 5后有数字，直接进位
+            return float(d_num.quantize(quantize_to, rounding=ROUND_HALF_UP))
+        else:
+            # 5后无数字（或只有0），应用“五成双”
+            return float(d_num.quantize(quantize_to, rounding=ROUND_HALF_EVEN))
 
 # --- 单个物理量不确定度计算函数 ---
 
@@ -161,3 +229,67 @@ def parse_float_list(data_str: str) -> list[float]:
         except ValueError:
             raise ValueError(f"数据列表中包含非数字项: '{elem}'。请确保输入的是有效的数字。")
     return float_list
+
+# 重要的格式化函数
+def format_uncertainty_and_value(value: float, uncertainty: float) -> tuple[str, str]:
+    """
+    根据国际惯例格式化不确定度和测量值：
+    1. 不确定度保留两位有效数字。
+    2. 测量值的小数点后位数与不确定度相同，并采用“四舍六入五成双”及“5后若有数字就入”的舍入规则。
+    """
+    if uncertainty == 0:
+        # 如果不确定度为0，则测量值可以保留固定位数，这里假设为4位小数
+        return f"{value:.4f}", f"{uncertainty:.2g}"
+
+    # 1. 格式化不确定度为两位有效数字
+    formatted_uncertainty_str = f"{uncertainty:.2g}"
+    
+    # 2. 确定不确定度的小数点后位数
+    decimal_places_uncertainty = 0
+    try:
+        # 使用Decimal进行精确转换，避免浮点数精度问题影响字符串解析
+        d_unc = Decimal(formatted_uncertainty_str)
+        s_d_unc = str(d_unc) # 再次转为字符串以便查找小数点和指数
+
+        if 'E' in s_d_unc.upper(): # 处理科学计数法，例如 "1.5E-03"
+            e_idx = s_d_unc.upper().find('E')
+            mantissa_part = s_d_unc[:e_idx] # 尾数部分，例如 "1.5"
+            exponent_str = s_d_unc[e_idx+1:] # 指数部分，例如 "-03"
+            
+            exponent = int(exponent_str)
+
+            dot_idx_mantissa = mantissa_part.find('.')
+            if dot_idx_mantissa != -1:
+                mantissa_decimals = len(mantissa_part) - dot_idx_mantissa - 1
+            else:
+                mantissa_decimals = 0 # 整数尾数
+
+            # 最终小数点位数 = 尾数小数位数 - 指数
+            # 例如 1.5e-3 -> mantissa_decimals=1, exponent=-3 -> 1 - (-3) = 4
+            # 例如 15e-3 (等同于1.5e-2) -> mantissa_decimals=0, exponent=-3 -> 0 - (-3) = 3
+            decimal_places_uncertainty = mantissa_decimals - exponent 
+            
+            # 例如 1.2e+02 (120) -> mantissa_decimals=1, exponent=2 -> 1 - 2 = -1，取max(0, -1) = 0
+            decimal_places_uncertainty = max(0, decimal_places_uncertainty)
+
+        elif '.' in s_d_unc: # 非科学计数法，例如 "0.0015"
+            decimal_places_uncertainty = len(s_d_unc.split('.')[1])
+        else: # 整数，例如 "23"
+            decimal_places_uncertainty = 0
+
+    except Exception:
+        # 如果解析失败，退回到一个默认值（例如4位小数），并打印警告
+        decimal_places_uncertainty = 4 # 安全默认值
+        print(f"警告: 无法精确确定不确定度 '{formatted_uncertainty_str}' 的小数点位数，将使用默认 {decimal_places_uncertainty} 位。")
+
+
+    # 3. 使用 custom_round_decimal 舍入测量值到指定的小数位数
+    formatted_value_float = custom_round_decimal(value, decimal_places_uncertainty)
+    
+    # 4. 确保格式化后的测量值字符串精确到指定的小数位数
+    # 注意：f-string {:.nf} 会进行标准的ROUND_HALF_EVEN舍入，
+    # 但我们已经通过 custom_round_decimal 完成了所需的舍入，
+    # 这里只是为了确保输出字符串的位数正确。
+    formatted_value_str = f"{formatted_value_float:.{decimal_places_uncertainty}f}"
+
+    return formatted_value_str, formatted_uncertainty_str

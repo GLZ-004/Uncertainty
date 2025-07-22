@@ -1,7 +1,7 @@
 import customtkinter as ctk
 from tkinter import messagebox, filedialog
 # 导入 calculation_formulas 模块，确保它在同一个目录下
-from calculation_formulas import propagate_uncertainty, parse_float_list 
+from calculation_formulas import propagate_uncertainty, parse_float_list ,format_uncertainty_and_value
 import os
 import threading # 导入线程模块，用于异步计算
 
@@ -358,3 +358,13 @@ class UncertaintyPropagationCalculator(ctk.CTkFrame):
                 messagebox.showinfo("导出成功", f"配置已成功导出到 {os.path.basename(file_path)}")
             except Exception as e:
                 messagebox.showerror("导出失败", f"无法导出配置文件: {e}")
+
+    def _update_results(self, y_value, u_y, error_info):
+        """在主线程中更新结果标签或显示错误消息"""
+        if error_info:
+            messagebox.showerror(error_info[0], error_info[1])
+        else:
+            # 调用新的格式化函数
+            formatted_value, formatted_uncertainty = format_uncertainty_and_value(y_value, u_y)
+            self.result_value_label.configure(text=f"输出测量值 (y): {formatted_value}")
+            self.result_uncertainty_label.configure(text=f"输出不确定度 (uy): {formatted_uncertainty}")

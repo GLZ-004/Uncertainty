@@ -4,7 +4,8 @@ from calculation_formulas import (
     calculate_b_uncertainty_from_limit,
     calculate_a_uncertainty_multiple_measurements,
     calculate_combined_uncertainty,
-    parse_float_list
+    parse_float_list,
+    format_uncertainty_and_value
 )
 import math # 确保导入了 math
 
@@ -269,11 +270,13 @@ class SingleQuantityCalculator(ctk.CTkFrame):
                 
                 final_uncertainty = calculate_combined_uncertainty(u_A_stats, u_B_instrument)
 
-            self.result_value_label.configure(text=f"测量值: {final_measurement_value:.4g}")
-            self.result_uncertainty_label.configure(text=f"不确定度: {final_uncertainty:.2g}")
+            # 调用新的格式化函数
+            formatted_value, formatted_uncertainty = format_uncertainty_and_value(final_measurement_value, final_uncertainty)
+
+            self.result_value_label.configure(text=f"测量值: {formatted_value}")
+            self.result_uncertainty_label.configure(text=f"不确定度: {formatted_uncertainty}")
 
         except ValueError as e:
             messagebox.showerror("输入错误", str(e))
         except Exception as e:
-            # 捕获所有其他异常，包括 invalid command name
             messagebox.showerror("计算错误", f"发生未知错误: {e}")
