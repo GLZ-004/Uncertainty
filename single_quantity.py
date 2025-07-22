@@ -1,11 +1,11 @@
 import customtkinter as ctk
 from tkinter import messagebox
 from calculation_formulas import (
-    calculate_b_uncertainty_single_measurement,
     calculate_b_uncertainty_from_limit,
     calculate_a_uncertainty_multiple_measurements,
     calculate_combined_uncertainty,
-    parse_float_list
+    parse_float_list,
+    format_uncertainty_and_value
 )
 import math # 确保导入了 math
 
@@ -231,7 +231,7 @@ class SingleQuantityCalculator(ctk.CTkFrame):
                 min_division = self.get_float_input('min_division', "仪器的最小分度值")
                 instrument_uncertainty_limit = self.get_float_input('instrument_uncertainty_limit', "仪器的不确定度限值")
                 
-                u_A_instrument = calculate_b_uncertainty_from_limit(instrument_uncertainty_limit, distribution_type)
+                u_B2_instrument = calculate_b_uncertainty_from_limit(instrument_uncertainty_limit, distribution_type)
 
                 reading_factor = self.get_reading_factor()
                 
@@ -241,19 +241,19 @@ class SingleQuantityCalculator(ctk.CTkFrame):
                     measurement_value = self.get_float_input('measurement_value', "测量值")
                     final_measurement_value = measurement_value
                     
-                    u_B_reading = calculate_b_uncertainty_single_measurement(min_division, distribution_type, reading_factor)
+                    u_B1_reading = reading_factor * min_division
                     
-                    final_uncertainty = calculate_combined_uncertainty(u_A_instrument, u_B_reading)
+                    final_uncertainty = calculate_combined_uncertainty(u_B2_instrument, u_B1_reading)
                     
                 elif single_measurement_type == "直尺类测量":
                     measurement_value1 = self.get_float_input('measurement_value1', "测量值 1")
                     measurement_value2 = self.get_float_input('measurement_value2', "测量值 2")
                     final_measurement_value = abs(measurement_value2 - measurement_value1)
 
-                    u_B_reading_single = calculate_b_uncertainty_single_measurement(min_division, distribution_type, reading_factor)
+                    u_B_reading_single = reading_factor * min_division
                     u_B_reading_combined = math.sqrt(2 * u_B_reading_single**2) 
                     
-                    final_uncertainty = calculate_combined_uncertainty(u_A_instrument, u_B_reading_combined)
+                    final_uncertainty = calculate_combined_uncertainty(u_B2_instrument, u_B_reading_combined)
 
             elif measurement_type == "多次测量":
                 data_list = self.get_float_list_input('data_list', "测量数据列表")
@@ -270,11 +270,13 @@ class SingleQuantityCalculator(ctk.CTkFrame):
                 
                 final_uncertainty = calculate_combined_uncertainty(u_A_stats, u_B_instrument)
 
-            self.result_value_label.configure(text=f"测量值: {final_measurement_value:.4g}")
-            self.result_uncertainty_label.configure(text=f"不确定度: {final_uncertainty:.2g}")
+            # 调用新的格式化函数
+            formatted_value, formatted_uncertainty = format_uncertainty_and_value(final_measurement_value, final_uncertainty)
+
+            self.result_value_label.configure(text=f"测量值: {formatted_value}")
+            self.result_uncertainty_label.configure(text=f"不确定度: {formatted_uncertainty}")
 
         except ValueError as e:
             messagebox.showerror("输入错误", str(e))
         except Exception as e:
-            # 捕获所有其他异常，包括 invalid command name
             messagebox.showerror("计算错误", f"发生未知错误: {e}")
