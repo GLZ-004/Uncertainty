@@ -1,22 +1,36 @@
 import customtkinter as ctk
 from tkinter import messagebox, filedialog
-from calculation_formulas import propagate_uncertainty, parse_float_list
-import os # 用于文件操作
+# 导入 calculation_formulas 模块，确保它在同一个目录下
+from calculation_formulas import propagate_uncertainty, parse_float_list 
+import os
+import threading # 导入线程模块，用于异步计算
 
 class UncertaintyPropagationCalculator(ctk.CTkFrame):
     def __init__(self, master, app_instance):
         super().__init__(master)
-        self.app = app_instance
+        self.app = app_instance # 用于访问主应用的 after 方法等
 
+        # 配置列权重，使其能灵活伸缩
         self.grid_columnconfigure((0, 1), weight=1)
-        # 为更多的行设置权重，以更好地布局
-        for i in range(10): 
-            self.grid_rowconfigure(i, weight=1)
+        # 配置行权重，确保不同区域的布局合理
+        self.grid_rowconfigure(0, weight=0) # 标题行
+        self.grid_rowconfigure(1, weight=0) # 函数输入行
+        self.grid_rowconfigure(2, weight=1) # 输入物理量滚动框 (可伸缩)
+        self.grid_rowconfigure(3, weight=0) # 添加/移除按钮行
+        self.grid_rowconfigure(4, weight=0) # 计算按钮行
+        self.grid_rowconfigure(5, weight=0) # 结果显示行
+        self.grid_rowconfigure(6, weight=0) # 导入/导出按钮行
+        self.grid_rowconfigure(7, weight=0) # 符号切换按钮行
+        self.grid_rowconfigure(8, weight=1) # 符号显示内容行 (当显示时，可伸缩)
+        self.grid_rowconfigure(9, weight=0) # 额外行，防止内容溢出
 
         self.input_vars_count = 1 # 初始输入物理量数量
         self.input_var_entries = [] # 存储输入物理量值和不确定度的Entry widgets
+        self.symbols_display_visible = True # 初始设为True，让第一次点击隐藏
 
         self.create_widgets()
+        # 初始时调用一次，将符号区域折叠起来
+        self.toggle_symbols_display() 
 
     def create_widgets(self):
         # 标题
@@ -49,7 +63,7 @@ class UncertaintyPropagationCalculator(ctk.CTkFrame):
         self.render_input_variables()
 
         # 计算按钮
-        self.calculate_button = ctk.CTkButton(self, text="计算传递不确定度", command=self.perform_propagation_calculation, font=("Arial", 18))
+        self.calculate_button = ctk.CTkButton(self, text="计算传递不确定度", command=self.perform_calculation_thread, font=("Arial", 18))
         self.calculate_button.grid(row=4, column=0, columnspan=2, pady=20)
 
         # 结果显示区域
@@ -73,27 +87,107 @@ class UncertaintyPropagationCalculator(ctk.CTkFrame):
         self.export_button = ctk.CTkButton(self.io_frame, text="导出配置", command=self.export_config)
         self.export_button.grid(row=0, column=1, padx=5, pady=5, sticky="e")
 
+        # --- 常用符号显示区域 ---
+        self.toggle_symbols_button = ctk.CTkButton(self, text="显示常用符号 ▼", command=self.toggle_symbols_display)
+        self.toggle_symbols_button.grid(row=7, column=0, columnspan=2, pady=10)
+
+        # 关键修改：使用 CTkFrame 包裹 CTkTextbox 来实现滚动功能
+        self.symbols_display_frame = ctk.CTkFrame(self, fg_color="transparent", border_width=1, border_color="gray") 
+        self.symbols_display_frame.grid_columnconfigure(0, weight=1) # 使文本框能水平填充
+        self.symbols_display_frame.grid_rowconfigure(0, weight=1) # 使文本框能垂直填充
+
+        self.symbols_content_textbox = ctk.CTkTextbox(
+            self.symbols_display_frame,
+            wrap="word", # 单词换行
+            width=700, # 设定宽度
+            height=200, # 设定初始高度，让内容在默认情况下可见一部分且带滚动条
+            font=("Arial", 14),
+            activate_scrollbars=True # 确保滚动条自动激活
+        )
+        self.symbols_content_textbox.insert("0.0", self.get_common_symbols_text())
+        self.symbols_content_textbox.configure(state="disabled") # 设置为只读
+        self.symbols_content_textbox.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+
+
+    def get_common_symbols_text(self):
+        """返回常用符号的文本描述"""
+        return """
+常用数学常数和函数 (基于 SymPy 语法):
+
+常量:
+  - 圆周率 π: `pi`
+  - 自然底数 e: `E` 或 `exp(1)`
+
+基本算术运算:
+  - 加: `+`
+  - 减: `-`
+  - 乘: `*`
+  - 除: `/`
+  - 幂: `**` (例如: x的平方写作 `x**2`)
+  - 括号: `()` 用于改变运算优先级
+
+常用函数:
+  - 平方根: `sqrt(x)` (例如: √x)
+  - 绝对值: `abs(x)`
+  - 自然对数: `log(x)` (以 `E` 为底)
+  - 以10为底的对数: `log(x, 10)`
+  - 指数函数: `exp(x)` (即 `E**x`)
+
+三角函数 (参数为弧度):
+  - 正弦: `sin(x)`
+  - 余弦: `cos(x)`
+  - 正切: `tan(x)`
+  - 反正弦: `asin(x)`
+  - 反余弦: `acos(x)`
+  - 反正切: `atan(x)`
+
+双曲函数:
+  - 双曲正弦: `sinh(x)`
+  - 双曲余弦: `cosh(x)`
+  - 双曲正切: `tanh(x)`
+
+示例:
+  - `x1*x2 + sin(x3)`
+  - `sqrt(x1**2 + x2**2)`
+  - `exp(-x1/x2) * log(x3)`
+"""
+
+    def toggle_symbols_display(self):
+        """切换常用符号显示区域的可见性"""
+        if self.symbols_display_visible:
+            # 当前可见，则隐藏
+            self.symbols_display_frame.grid_forget() # 从网格中移除
+            self.toggle_symbols_button.configure(text="显示常用符号 ▼")
+            self.symbols_display_visible = False
+        else:
+            # 当前隐藏，则显示
+            # 将其放置在 row=8，确保它在切换按钮下方
+            self.symbols_display_frame.grid(row=8, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
+            # 确保内部的 textbox 能够扩展填充 frame
+            self.symbols_display_frame.grid_rowconfigure(0, weight=1) 
+            self.symbols_display_frame.grid_columnconfigure(0, weight=1)
+            self.toggle_symbols_button.configure(text="隐藏常用符号 ▲")
+            self.symbols_display_visible = True
 
     def render_input_variables(self):
         """重新渲染所有输入物理量的Entry"""
-        # 清除旧的 Entry
-        for widgets in self.input_var_entries:
-            for widget in widgets:
-                widget.destroy()
+        # 销毁旧组件时，需要先从列表中移除引用，再销毁，确保不会操作到已销毁的widget
+        for label, value_entry, uncertainty_entry in self.input_var_entries:
+            label.destroy()
+            value_entry.destroy()
+            uncertainty_entry.destroy()
         self.input_var_entries.clear()
 
+        # 创建新组件
         for i in range(self.input_vars_count):
             row_num = i 
             
-            # 变量名 (只读，显示 x1, x2, ...)
             var_name_label = ctk.CTkLabel(self.input_vars_frame, text=f"x{i+1}:", font=("Arial", 14))
             var_name_label.grid(row=row_num, column=0, padx=5, pady=5, sticky="e")
 
-            # 测量值 Entry
             value_entry = ctk.CTkEntry(self.input_vars_frame, placeholder_text=f"x{i+1} 测量值", width=100)
             value_entry.grid(row=row_num, column=1, padx=5, pady=5, sticky="ew")
 
-            # 不确定度 Entry
             uncertainty_entry = ctk.CTkEntry(self.input_vars_frame, placeholder_text=f"ux{i+1} 不确定度", width=100)
             uncertainty_entry.grid(row=row_num, column=2, padx=5, pady=5, sticky="ew")
             
@@ -102,30 +196,48 @@ class UncertaintyPropagationCalculator(ctk.CTkFrame):
 
     def add_input_variable(self):
         self.input_vars_count += 1
-        self.render_input_variables() # 重新渲染UI
+        self.render_input_variables()
 
     def remove_input_variable(self):
-        if self.input_vars_count > 1: # 至少保留一个变量
+        if self.input_vars_count > 1:
             self.input_vars_count -= 1
-            self.render_input_variables() # 重新渲染UI
+            self.render_input_variables()
         else:
             messagebox.showwarning("警告", "至少需要一个输入物理量。")
 
-    def perform_propagation_calculation(self):
+    def perform_calculation_thread(self):
+        """
+        启动一个新线程来执行计算，并更新UI状态
+        """
+        # 禁用按钮，防止重复点击
+        self.calculate_button.configure(state="disabled", text="计算中...")
+        self.import_button.configure(state="disabled")
+        self.export_button.configure(state="disabled")
+        self.add_var_button.configure(state="disabled")
+        self.remove_var_button.configure(state="disabled")
+        
+        # 在新线程中执行计算
+        thread = threading.Thread(target=self._perform_propagation_calculation_safe)
+        thread.start()
+
+    def _perform_propagation_calculation_safe(self):
+        """
+        在单独线程中执行实际的计算逻辑，并通过 Tkinter 的 after 方法安全地更新 UI
+        """
         try:
+            # 在主线程中获取所有输入数据，然后传递给子线程，这是最安全的做法
             function_str = self.function_entry.get().strip()
-            if not function_str:
-                raise ValueError("函数表达式不能为空。")
+            
+            x_values_collected = {}
+            u_x_values_collected = {}
 
-            x_values = {}
-            u_x_values = {}
-
+            # 遍历 input_var_entries 收集数据
             for i, entries in enumerate(self.input_var_entries):
-                # entries[1] 是测量值 Entry, entries[2] 是不确定度 Entry
                 var_name = f"x{i+1}"
                 
-                # 检查 Entry 是否存在且未被销毁
+                # 在获取数据前再次检查 Entry 是否存在，以防万一
                 if not entries[1].winfo_exists() or not entries[2].winfo_exists():
+                    # 如果任何一个输入框不存在，则抛出错误，阻止计算
                     raise ValueError(f"物理量 {var_name} 的输入框已被销毁，请重新输入。")
 
                 x_str = entries[1].get().strip()
@@ -135,26 +247,48 @@ class UncertaintyPropagationCalculator(ctk.CTkFrame):
                     raise ValueError(f"物理量 {var_name} 的测量值和不确定度不能为空。")
                 
                 try:
-                    x_values[var_name] = float(x_str)
-                    u_x_values[var_name] = float(ux_str)
+                    x_values_collected[var_name] = float(x_str)
+                    u_x_values_collected[var_name] = float(ux_str)
                 except ValueError:
                     raise ValueError(f"物理量 {var_name} 的测量值或不确定度必须是有效数字。")
 
-            if not x_values:
+            if not x_values_collected:
                 raise ValueError("请至少添加一个输入物理量。")
 
-            # 调用核心计算函数
-            y_value, u_y = propagate_uncertainty(function_str, x_values, u_x_values)
+            # 调用核心计算函数 (这部分是耗时的，在子线程中执行)
+            y_value, u_y = propagate_uncertainty(function_str, x_values_collected, u_x_values_collected)
 
+            # 通过 after 方法在主线程中更新 UI
+            self.app.after(10, self._update_results, y_value, u_y, None)
+
+        except ValueError as e:
+            self.app.after(10, self._update_results, None, None, ("输入错误", str(e)))
+        except Exception as e:
+            # 捕获其他所有异常
+            self.app.after(10, self._update_results, None, None, ("计算错误", f"发生未知错误: {e}"))
+        finally:
+            # 无论成功失败，都在主线程中重新启用按钮
+            self.app.after(10, self._re_enable_buttons)
+
+    def _update_results(self, y_value, u_y, error_info):
+        """在主线程中更新结果标签或显示错误消息"""
+        if error_info:
+            messagebox.showerror(error_info[0], error_info[1])
+        else:
             self.result_value_label.configure(text=f"输出测量值 (y): {y_value:.4g}")
             self.result_uncertainty_label.configure(text=f"输出不确定度 (uy): {u_y:.2g}")
 
-        except ValueError as e:
-            messagebox.showerror("输入错误", str(e))
-        except Exception as e:
-            messagebox.showerror("计算错误", f"发生未知错误: {e}")
+    def _re_enable_buttons(self):
+        """在主线程中重新启用所有按钮"""
+        self.calculate_button.configure(state="normal", text="计算传递不确定度")
+        self.import_button.configure(state="normal")
+        self.export_button.configure(state="normal")
+        self.add_var_button.configure(state="normal")
+        self.remove_var_button.configure(state="normal")
+
 
     def import_config(self):
+        """从文件导入配置"""
         file_path = filedialog.askopenfilename(
             title="选择配置文件",
             filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
@@ -164,7 +298,7 @@ class UncertaintyPropagationCalculator(ctk.CTkFrame):
                 with open(file_path, 'r', encoding='utf-8') as f:
                     lines = f.readlines()
                     if len(lines) < 2:
-                        raise ValueError("文件内容格式不正确。")
+                        raise ValueError("文件内容格式不正确。至少需要函数表达式和一组物理量数据。")
                     
                     # 读取函数表达式
                     self.function_entry.delete(0, ctk.END)
@@ -177,19 +311,21 @@ class UncertaintyPropagationCalculator(ctk.CTkFrame):
                         if len(parts) == 2:
                             input_data.append((parts[0], parts[1]))
                         else:
-                            raise ValueError(f"物理量行格式不正确: {line.strip()}")
+                            raise ValueError(f"物理量行格式不正确: {line.strip()}。应为 '值,不确定度'。")
                     
                     self.input_vars_count = len(input_data)
                     self.render_input_variables() # 重新渲染UI以匹配数量
 
+                    # 填充数据
                     for i, (value_str, uncertainty_str) in enumerate(input_data):
-                        if i < len(self.input_var_entries):
+                        if i < len(self.input_var_entries): # 确保索引在范围内
                             self.input_var_entries[i][1].delete(0, ctk.END) # value entry
                             self.input_var_entries[i][1].insert(0, value_str)
                             self.input_var_entries[i][2].delete(0, ctk.END) # uncertainty entry
                             self.input_var_entries[i][2].insert(0, uncertainty_str)
                         else:
-                            messagebox.showwarning("警告", "导入的物理量数量超过当前UI的限制，部分物理量未导入。")
+                            # 理论上 render_input_variables 已经保证了数量匹配，这里作为额外检查
+                            messagebox.showwarning("警告", "导入的物理量数量与UI创建的输入框数量不完全匹配。")
                             break
 
                 messagebox.showinfo("导入成功", "配置已成功导入。")
@@ -197,6 +333,7 @@ class UncertaintyPropagationCalculator(ctk.CTkFrame):
                 messagebox.showerror("导入失败", f"无法导入配置文件: {e}")
 
     def export_config(self):
+        """导出当前配置到文件"""
         file_path = filedialog.asksaveasfilename(
             title="保存配置文件",
             defaultextension=".txt",
@@ -210,6 +347,7 @@ class UncertaintyPropagationCalculator(ctk.CTkFrame):
                     
                     # 写入每个输入物理量的值和不确定度
                     for i, entries in enumerate(self.input_var_entries):
+                        # 再次检查 Entry 是否存在，以防在操作过程中被销毁
                         if entries[1].winfo_exists() and entries[2].winfo_exists():
                             value = entries[1].get().strip()
                             uncertainty = entries[2].get().strip()

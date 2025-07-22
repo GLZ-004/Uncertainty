@@ -9,31 +9,11 @@ DEFAULT_T_FACTOR = 1.0
 K_UNIFORM = math.sqrt(3)
 # 三角形分布的系数
 K_TRIANGULAR = math.sqrt(6)
+# 正态分布，置信水平为95%
+K_NORMAL_DISTRIBUTION = 2 # 可以根据需要调整
+
 
 # --- 单个物理量不确定度计算函数 ---
-
-def calculate_b_uncertainty_single_measurement(delta_min_division: float, distribution_type: str, reading_factor: float) -> float:
-    """
-    计算单次测量下的B类不确定度。
-    Args:
-        delta_min_division (float): 仪器的最小分度值 (Δ)。
-        distribution_type (str): 分布类型 ('均匀分布', '正态分布', '三角形分布')。
-        reading_factor (float): 估读情况 (例如 1/10, 1/5, 1/2, 1)。
-    Returns:
-        float: B类不确定度 u_B。
-    """
-    u_reading = reading_factor * delta_min_division
-    
-    if distribution_type == '均匀分布':
-        return u_reading / K_UNIFORM
-    elif distribution_type == '正态分布':
-        # 正态分布通常指的是A类，但这里是作为B类的一种假设分布来处理
-        # 按照文件描述，这里将 u_reading 视为标准差的1倍。
-        return u_reading
-    elif distribution_type == '三角形分布':
-        return u_reading / K_TRIANGULAR
-    else:
-        raise ValueError("无效的分布类型。请选择 '均匀分布', '正态分布' 或 '三角形分布'。")
 
 def calculate_b_uncertainty_from_limit(uncertainty_limit: float, distribution_type: str) -> float:
     """
@@ -48,10 +28,7 @@ def calculate_b_uncertainty_from_limit(uncertainty_limit: float, distribution_ty
     if distribution_type == '均匀分布':
         return uncertainty_limit / K_UNIFORM
     elif distribution_type == '正态分布':
-        # 通常仪器给出的不确定度限值是扩展不确定度，这里简单除以2或3，
-        # 考虑到文件描述中没有明确说明，假设其为标准不确定度或者按均匀分布处理
-        # 这里为了简化，如果选择正态分布，直接返回限值作为标准不确定度（假设限值就是标准差）
-        return uncertainty_limit
+        return uncertainty_limit / K_NORMAL_DISTRIBUTION 
     elif distribution_type == '三角形分布':
         return uncertainty_limit / K_TRIANGULAR
     else:
