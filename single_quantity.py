@@ -7,67 +7,113 @@ from calculation_formulas import (
     parse_float_list,
     format_uncertainty_and_value
 )
-import math # 确保导入了 math
+import math
+
+# 如果要使用图片图标，请取消注释并确保图片文件存在
+# from PIL import Image
+# BACK_ICON_PATH = "icons/back_arrow.png" # 假设图标在 icons 文件夹下
 
 class SingleQuantityCalculator(ctk.CTkFrame):
     def __init__(self, master, app_instance):
-        super().__init__(master)
+        super().__init__(master, fg_color="transparent")
         self.app = app_instance
 
-        self.grid_columnconfigure((0, 1), weight=1)
-        # 增加一些行权重，确保内容居中或合理分布
-        for i in range(10): # 调整行数以适应内容
-            self.grid_rowconfigure(i, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+
+        # 优化行权重，确保内容合理分布和居中
+        self.grid_rowconfigure(0, weight=0) # 标题和返回按钮
+        self.grid_rowconfigure(1, weight=0) # 选择测量类型
+        self.grid_rowconfigure(2, weight=0) # 多次测量radio
+        self.grid_rowconfigure(3, weight=0) # 测量选项动态框架
+        self.grid_rowconfigure(4, weight=0) # 估读情况
+        self.grid_rowconfigure(5, weight=0) # 最小分度值
+        self.grid_rowconfigure(6, weight=0) # 不确定度限值
+        self.grid_rowconfigure(7, weight=0) # 分布类型 (通用)
+        self.grid_rowconfigure(8, weight=1) # 弹性空间，推Results和Button到底部
+        self.grid_rowconfigure(9, weight=0) # 结果显示
+        self.grid_rowconfigure(10, weight=0) # 计算按钮
+        self.grid_rowconfigure(11, weight=1) # 底部弹性空间，确保内容不贴边
+
+        self.entry_widgets = {}
 
         self.create_widgets()
+        self.show_measurement_options() # 确保初始时显示正确的测量选项
 
     def create_widgets(self):
-        # ... (这部分保持不变) ...
-        self.title_label = ctk.CTkLabel(self, text="单个物理量不确定度计算与合成", font=("Arial", 24, "bold"))
-        self.title_label.grid(row=0, column=0, columnspan=2, pady=20)
+        # 标题
+        self.title_label = ctk.CTkLabel(self, text="单个物理量不确定度计算与合成", font=("Arial", 30, "bold"))
+        self.title_label.grid(row=0, column=0, columnspan=2, pady=(25, 15), sticky="n")
 
-        self.back_button = ctk.CTkButton(self, text="返回主菜单", command=self.app.create_main_menu)
-        self.back_button.grid(row=0, column=1, padx=10, pady=10, sticky="ne") 
+        # 返回按钮 - 文本加上箭头符号
+        # 如果使用图片图标，可以这样加载:
+        # back_icon = ctk.CTkImage(light_image=Image.open(BACK_ICON_PATH),
+        #                          dark_image=Image.open(BACK_ICON_PATH), size=(18, 18))
+        self.back_button = ctk.CTkButton(
+            self, 
+            text="← 返回主菜单", # 添加箭头符号
+            # image=back_icon, # 如果使用图片图标，取消注释此行
+            command=self.app.create_main_menu,
+            width=120, # 按钮宽度增加
+            height=35, # 按钮高度增加
+            font=("Arial", 15, "bold"), # 字体更清晰
+            corner_radius=9, # 稍大的圆角
+            fg_color="transparent", # 透明背景
+            text_color=("blue", "lightblue") # 蓝色文本，像一个链接
+        )
+        self.back_button.grid(row=0, column=1, padx=25, pady=(25, 15), sticky="ne")
 
-        self.measurement_type_label = ctk.CTkLabel(self, text="选择测量类型:", font=("Arial", 16))
-        self.measurement_type_label.grid(row=1, column=0, padx=10, pady=5, sticky="w")
+        # --- 测量类型选择 ---
+        self.measurement_type_label = ctk.CTkLabel(self, text="选择测量类型:", font=("Arial", 16, "bold"))
+        self.measurement_type_label.grid(row=1, column=0, padx=30, pady=(15, 5), sticky="w")
         
         self.measurement_type_var = ctk.StringVar(value="单次测量")
         self.single_measurement_radio = ctk.CTkRadioButton(
-            self, text="单次测量", variable=self.measurement_type_var, value="单次测量", command=self.show_measurement_options
+            self, text="单次测量", variable=self.measurement_type_var, value="单次测量", 
+            command=self.show_measurement_options, font=("Arial", 16)
         )
-        self.single_measurement_radio.grid(row=1, column=1, padx=10, pady=5, sticky="w")
+        self.single_measurement_radio.grid(row=1, column=1, padx=20, pady=(15, 5), sticky="w")
         
         self.multiple_measurement_radio = ctk.CTkRadioButton(
-            self, text="多次测量", variable=self.measurement_type_var, value="多次测量", command=self.show_measurement_options
+            self, text="多次测量", variable=self.measurement_type_var, value="多次测量", 
+            command=self.show_measurement_options, font=("Arial", 16)
         )
-        self.multiple_measurement_radio.grid(row=2, column=1, padx=10, pady=5, sticky="w")
+        self.multiple_measurement_radio.grid(row=2, column=1, padx=20, pady=5, sticky="w")
 
+        # --- 测量选项动态框架 ---
+        # 放置在第3行，方便管理内部组件的动态销毁和创建
         self.measurement_options_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.measurement_options_frame.grid(row=3, column=0, columnspan=2, padx=10, pady=10, sticky="nsew")
-        self.measurement_options_frame.grid_columnconfigure((0, 1), weight=1)
+        self.measurement_options_frame.grid(row=3, column=0, columnspan=2, padx=30, pady=10, sticky="nsew")
+        self.measurement_options_frame.grid_columnconfigure(0, weight=1)
+        self.measurement_options_frame.grid_columnconfigure(1, weight=1)
 
+        # --- 结果显示区域 ---
         self.result_frame = ctk.CTkFrame(self, fg_color="transparent")
-        self.result_frame.grid(row=8, column=0, columnspan=2, padx=10, pady=20, sticky="ew")
+        self.result_frame.grid(row=9, column=0, columnspan=2, padx=30, pady=(20, 10), sticky="ew")
         self.result_frame.grid_columnconfigure((0, 1), weight=1)
 
-        self.result_value_label = ctk.CTkLabel(self.result_frame, text="测量值: ", font=("Arial", 18, "bold"))
-        self.result_value_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        self.result_uncertainty_label = ctk.CTkLabel(self.result_frame, text="不确定度: ", font=("Arial", 18, "bold"))
-        self.result_uncertainty_label.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        self.result_value_label = ctk.CTkLabel(self.result_frame, text="测量值: ", font=("Arial", 22, "bold")) # 字号更大
+        self.result_value_label.grid(row=0, column=0, padx=15, pady=8, sticky="w")
+        self.result_uncertainty_label = ctk.CTkLabel(self.result_frame, text="不确定度: ", font=("Arial", 22, "bold")) # 字号更大
+        self.result_uncertainty_label.grid(row=0, column=1, padx=15, pady=8, sticky="w")
 
-        self.show_measurement_options()
-
-        # 计算按钮 (移到最后，确保在 show_measurement_options 之后创建，且在 perform_calculation 中不会被销毁)
-        self.calculate_button = ctk.CTkButton(self, text="计算", command=self.perform_calculation, font=("Arial", 18))
-        # 确保 calculate_button 的 grid row 不会被其他元素覆盖，或者确保它在 show_measurement_options 之后设置
-        # 这里设置为一个较高的固定行，例如 row=9，假设前面最多用到row=8
-        self.calculate_button.grid(row=9, column=0, columnspan=2, pady=20)
+        # --- 计算按钮 ---
+        self.calculate_button = ctk.CTkButton(
+            self, 
+            text="计算", 
+            command=self.perform_calculation, 
+            font=("Arial", 22, "normal"), 
+            height=55, # 按钮更高
+            width=220, # 按钮更宽
+            corner_radius=12 # 增加圆角
+        )
+        self.calculate_button.grid(row=10, column=0, columnspan=2, pady=(15, 40))
 
 
     def clear_measurement_options_frame(self):
         for widget in self.measurement_options_frame.winfo_children():
             widget.destroy()
+        self.entry_widgets.clear()
 
     def show_measurement_options(self):
         self.clear_measurement_options_frame()
@@ -75,126 +121,141 @@ class SingleQuantityCalculator(ctk.CTkFrame):
 
         row_idx = 0
 
-        # 通用输入：仪器的不确定度限值, 最小分度值, 分布类型
-        # 这些输入框需要定义在 self 而不是 self.measurement_options_frame 内部，
-        # 或者至少确保它们不会被销毁。为了简洁，我们让它们总是存在。
-        # 重新组织一下，让所有共同的输入框不被清除函数销毁。
-        
-        # 考虑到代码结构，将这些通用输入也放在 measurement_options_frame 中
-        # 但是在 destroy() 之前，我们需要确保所有需要引用的 Entry 都有一个 self. 引用
-
-        # 定义 Entry 的局部变量以避免引用已销毁的对象
-        self.entry_widgets = {} # 用字典存储所有可能动态创建的 Entry widgets
-
         if measurement_type == "单次测量":
-            self.single_measurement_type_label = ctk.CTkLabel(self.measurement_options_frame, text="单次测量类型:", font=("Arial", 16))
-            self.single_measurement_type_label.grid(row=row_idx, column=0, padx=5, pady=5, sticky="w")
+            # --- 单次测量类型选择 ---
+            self.single_measurement_type_label = ctk.CTkLabel(self.measurement_options_frame, text="单次测量类型:", font=("Arial", 15))
+            self.single_measurement_type_label.grid(row=row_idx, column=0, padx=10, pady=(10,0), sticky="w")
             
             self.single_measurement_type_var = ctk.StringVar(value="一般测量")
             self.general_measurement_radio = ctk.CTkRadioButton(
-                self.measurement_options_frame, text="一般测量", variable=self.single_measurement_type_var, value="一般测量", command=self.show_single_measurement_details
+                self.measurement_options_frame, text="一般测量", variable=self.single_measurement_type_var, value="一般测量", 
+                command=self.show_single_measurement_details, font=("Arial", 15)
             )
-            self.general_measurement_radio.grid(row=row_idx, column=1, padx=5, pady=5, sticky="w")
+            self.general_measurement_radio.grid(row=row_idx, column=1, padx=10, pady=(10,0), sticky="w")
             row_idx += 1
             
             self.ruler_measurement_radio = ctk.CTkRadioButton(
-                self.measurement_options_frame, text="直尺类测量", variable=self.single_measurement_type_var, value="直尺类测量", command=self.show_single_measurement_details
+                self.measurement_options_frame, text="直尺类测量", variable=self.single_measurement_type_var, value="直尺类测量", 
+                command=self.show_single_measurement_details, font=("Arial", 15)
             )
-            self.ruler_measurement_radio.grid(row=row_idx, column=1, padx=5, pady=5, sticky="w")
+            self.ruler_measurement_radio.grid(row=row_idx, column=1, padx=10, pady=5, sticky="w")
             row_idx += 1
 
+            # --- 单次测量详情动态框架 ---
             self.single_measurement_details_frame = ctk.CTkFrame(self.measurement_options_frame, fg_color="transparent")
-            self.single_measurement_details_frame.grid(row=row_idx, column=0, columnspan=2, sticky="nsew", pady=10)
-            self.single_measurement_details_frame.grid_columnconfigure((0, 1), weight=1)
+            self.single_measurement_details_frame.grid(row=row_idx, column=0, columnspan=2, sticky="nsew", pady=5)
+            self.single_measurement_details_frame.grid_columnconfigure(0, weight=1)
+            self.single_measurement_details_frame.grid_columnconfigure(1, weight=1)
             row_idx += 1
 
             self.show_single_measurement_details() # 初始显示一般测量详情
 
-            self.reading_factor_label = ctk.CTkLabel(self.measurement_options_frame, text="估读情况 (Δx/Δ):", font=("Arial", 16))
-            self.reading_factor_label.grid(row=row_idx, column=0, padx=5, pady=5, sticky="w")
+            # --- 估读情况 ---
+            self.reading_factor_label = ctk.CTkLabel(self.measurement_options_frame, text="估读情况 (Δx/Δ):", font=("Arial", 15))
+            self.reading_factor_label.grid(row=row_idx, column=0, padx=10, pady=5, sticky="w")
             self.reading_factor_combobox = ctk.CTkComboBox(
-                self.measurement_options_frame, values=["1/10", "1/5", "1/2", "1"], state="readonly", width=120
+                self.measurement_options_frame, values=["1/10", "1/5", "1/2", "1"], state="readonly", width=180, height=32, font=("Arial", 15)
             )
             self.reading_factor_combobox.set("1/10")
-            self.reading_factor_combobox.grid(row=row_idx, column=1, padx=5, pady=5, sticky="w")
+            self.reading_factor_combobox.grid(row=row_idx, column=1, padx=10, pady=5, sticky="w")
             row_idx += 1
 
-            # 仪器的最小分度值 (Δ)
-            self.min_division_label = ctk.CTkLabel(self.measurement_options_frame, text="仪器的最小分度值 (Δ):", font=("Arial", 16))
-            self.min_division_label.grid(row=row_idx, column=0, padx=5, pady=5, sticky="w")
-            self.entry_widgets['min_division'] = ctk.CTkEntry(self.measurement_options_frame, width=120)
-            self.entry_widgets['min_division'].grid(row=row_idx, column=1, padx=5, pady=5, sticky="w")
+            # --- 仪器的最小分度值 (Δ) ---
+            self.min_division_label = ctk.CTkLabel(self.measurement_options_frame, text="仪器的最小分度值 (Δ):", font=("Arial", 15))
+            self.min_division_label.grid(row=row_idx, column=0, padx=10, pady=5, sticky="w")
+            self.entry_widgets['min_division'] = ctk.CTkEntry(self.measurement_options_frame, width=180, height=32, font=("Arial", 15))
+            self.entry_widgets['min_division'].grid(row=row_idx, column=1, padx=10, pady=5, sticky="w")
             row_idx += 1
             
+<<<<<<< HEAD
             # 仪器的不确定度限值 (for U_B2) - 单次测量也可能需要
             self.instrument_uncertainty_limit_label = ctk.CTkLabel(self.measurement_options_frame, text="仪器的不确定度限值:", font=("Arial", 16))
             self.instrument_uncertainty_limit_label.grid(row=row_idx, column=0, padx=5, pady=5, sticky="w")
             self.entry_widgets['instrument_uncertainty_limit'] = ctk.CTkEntry(self.measurement_options_frame, width=120)
             self.entry_widgets['instrument_uncertainty_limit'].grid(row=row_idx, column=1, padx=5, pady=5, sticky="w")
+=======
+            # --- 仪器的不确定度限值 (for U_B2) ---
+            self.instrument_uncertainty_limit_label = ctk.CTkLabel(self.measurement_options_frame, text="仪器的不确定度限值:", font=("Arial", 15))
+            self.instrument_uncertainty_limit_label.grid(row=row_idx, column=0, padx=10, pady=5, sticky="w")
+            self.entry_widgets['instrument_uncertainty_limit'] = ctk.CTkEntry(self.measurement_options_frame, width=180, height=32, font=("Arial", 15))
+            self.entry_widgets['instrument_uncertainty_limit'].grid(row=row_idx, column=1, padx=10, pady=5, sticky="w")
+>>>>>>> dev
             row_idx += 1
 
 
         elif measurement_type == "多次测量":
-            # 测量数据列表
-            self.data_list_label = ctk.CTkLabel(self.measurement_options_frame, text="测量数据 (逗号或空格分隔):", font=("Arial", 16))
-            self.data_list_label.grid(row=row_idx, column=0, padx=5, pady=5, sticky="w")
-            self.entry_widgets['data_list'] = ctk.CTkEntry(self.measurement_options_frame, width=250)
-            self.entry_widgets['data_list'].grid(row=row_idx, column=1, padx=5, pady=5, sticky="ew")
+            # --- 测量数据列表 ---
+            self.data_list_label = ctk.CTkLabel(self.measurement_options_frame, text="测量数据 (逗号或空格分隔):", font=("Arial", 15))
+            self.data_list_label.grid(row=row_idx, column=0, padx=10, pady=5, sticky="w")
+            self.entry_widgets['data_list'] = ctk.CTkEntry(self.measurement_options_frame, width=280, height=32, font=("Arial", 15))
+            self.entry_widgets['data_list'].grid(row=row_idx, column=1, padx=10, pady=5, sticky="ew")
             row_idx += 1
 
-            # t因子
-            self.t_factor_label = ctk.CTkLabel(self.measurement_options_frame, text="t因子 (默认1):", font=("Arial", 16))
-            self.t_factor_label.grid(row=row_idx, column=0, padx=5, pady=5, sticky="w")
-            self.entry_widgets['t_factor'] = ctk.CTkEntry(self.measurement_options_frame, width=120)
+            # --- t因子 ---
+            self.t_factor_label = ctk.CTkLabel(self.measurement_options_frame, text="t因子 (默认1):", font=("Arial", 15))
+            self.t_factor_label.grid(row=row_idx, column=0, padx=10, pady=5, sticky="w")
+            self.entry_widgets['t_factor'] = ctk.CTkEntry(self.measurement_options_frame, width=180, height=32, font=("Arial", 15))
             self.entry_widgets['t_factor'].insert(0, "1.0")
-            self.entry_widgets['t_factor'].grid(row=row_idx, column=1, padx=5, pady=5, sticky="w")
+            self.entry_widgets['t_factor'].grid(row=row_idx, column=1, padx=10, pady=5, sticky="w")
             row_idx += 1
             
+<<<<<<< HEAD
             # 仪器的不确定度限值 (U_B2)
             self.instrument_uncertainty_limit_label = ctk.CTkLabel(self.measurement_options_frame, text="仪器的不确定度限值:", font=("Arial", 16))
             self.instrument_uncertainty_limit_label.grid(row=row_idx, column=0, padx=5, pady=5, sticky="w")
             self.entry_widgets['instrument_uncertainty_limit'] = ctk.CTkEntry(self.measurement_options_frame, width=120)
             self.entry_widgets['instrument_uncertainty_limit'].grid(row=row_idx, column=1, padx=5, pady=5, sticky="w")
+=======
+            # --- 仪器的不确定度限值 (U_B2) ---
+            self.instrument_uncertainty_limit_label = ctk.CTkLabel(self.measurement_options_frame, text="仪器的不确定度限值:", font=("Arial", 15))
+            self.instrument_uncertainty_limit_label.grid(row=row_idx, column=0, padx=10, pady=5, sticky="w")
+            self.entry_widgets['instrument_uncertainty_limit'] = ctk.CTkEntry(self.measurement_options_frame, width=180, height=32, font=("Arial", 15))
+            self.entry_widgets['instrument_uncertainty_limit'].grid(row=row_idx, column=1, padx=10, pady=5, sticky="w")
+>>>>>>> dev
             row_idx += 1
 
-
-        # 分布类型
-        self.distribution_type_label = ctk.CTkLabel(self.measurement_options_frame, text="分布类型:", font=("Arial", 16))
-        self.distribution_type_label.grid(row=row_idx, column=0, padx=5, pady=5, sticky="w")
+        # --- 分布类型 (通用) ---
+        self.distribution_type_label = ctk.CTkLabel(self.measurement_options_frame, text="分布类型:", font=("Arial", 15))
+        self.distribution_type_label.grid(row=row_idx, column=0, padx=10, pady=5, sticky="w")
         self.distribution_type_combobox = ctk.CTkComboBox(
-            self.measurement_options_frame, values=["均匀分布", "正态分布", "三角形分布"], state="readonly", width=120
+            self.measurement_options_frame, values=["均匀分布", "正态分布", "三角形分布"], state="readonly", width=180, height=32, font=("Arial", 15)
         )
         self.distribution_type_combobox.set("均匀分布")
-        self.distribution_type_combobox.grid(row=row_idx, column=1, padx=5, pady=5, sticky="w")
+        self.distribution_type_combobox.grid(row=row_idx, column=1, padx=10, pady=5, sticky="w")
         row_idx += 1
 
 
     def show_single_measurement_details(self):
         for widget in self.single_measurement_details_frame.winfo_children():
             widget.destroy()
+        
+        for key in ['measurement_value', 'measurement_value1', 'measurement_value2']:
+            if key in self.entry_widgets:
+                del self.entry_widgets[key]
+
 
         single_measurement_type = self.single_measurement_type_var.get()
 
         if single_measurement_type == "一般测量":
-            self.measurement_value_label = ctk.CTkLabel(self.single_measurement_details_frame, text="测量值 (仅一个数据):", font=("Arial", 16))
-            self.measurement_value_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
-            self.entry_widgets['measurement_value'] = ctk.CTkEntry(self.single_measurement_details_frame, width=120)
-            self.entry_widgets['measurement_value'].grid(row=0, column=1, padx=5, pady=5, sticky="w")
+            self.measurement_value_label = ctk.CTkLabel(self.single_measurement_details_frame, text="测量值 (仅一个数据):", font=("Arial", 15))
+            self.measurement_value_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
+            self.entry_widgets['measurement_value'] = ctk.CTkEntry(self.single_measurement_details_frame, width=180, height=32, font=("Arial", 15))
+            self.entry_widgets['measurement_value'].grid(row=0, column=1, padx=10, pady=5, sticky="w")
         elif single_measurement_type == "直尺类测量":
-            self.measurement_value1_label = ctk.CTkLabel(self.single_measurement_details_frame, text="测量值 1:", font=("Arial", 16))
-            self.measurement_value1_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
-            self.entry_widgets['measurement_value1'] = ctk.CTkEntry(self.single_measurement_details_frame, width=120)
-            self.entry_widgets['measurement_value1'].grid(row=0, column=1, padx=5, pady=5, sticky="w")
+            self.measurement_value1_label = ctk.CTkLabel(self.single_measurement_details_frame, text="测量值 1:", font=("Arial", 15))
+            self.measurement_value1_label.grid(row=0, column=0, padx=10, pady=5, sticky="w")
+            self.entry_widgets['measurement_value1'] = ctk.CTkEntry(self.single_measurement_details_frame, width=180, height=32, font=("Arial", 15))
+            self.entry_widgets['measurement_value1'].grid(row=0, column=1, padx=10, pady=5, sticky="w")
 
-            self.measurement_value2_label = ctk.CTkLabel(self.single_measurement_details_frame, text="测量值 2:", font=("Arial", 16))
-            self.measurement_value2_label.grid(row=1, column=0, padx=5, pady=5, sticky="w")
-            self.entry_widgets['measurement_value2'] = ctk.CTkEntry(self.single_measurement_details_frame, width=120)
-            self.entry_widgets['measurement_value2'].grid(row=1, column=1, padx=5, pady=5, sticky="w")
+            self.measurement_value2_label = ctk.CTkLabel(self.single_measurement_details_frame, text="测量值 2:", font=("Arial", 15))
+            self.measurement_value2_label.grid(row=1, column=0, padx=10, pady=5, sticky="w")
+            self.entry_widgets['measurement_value2'] = ctk.CTkEntry(self.single_measurement_details_frame, width=180, height=32, font=("Arial", 15))
+            self.entry_widgets['measurement_value2'].grid(row=1, column=1, padx=10, pady=5, sticky="w")
 
     def get_float_input(self, key, name):
         """从 self.entry_widgets 字典中获取Entry并尝试转换为浮点数"""
         entry_widget = self.entry_widgets.get(key)
-        if not entry_widget or not entry_widget.winfo_exists(): # 检查组件是否存在
+        if not entry_widget or not entry_widget.winfo_exists():
             raise ValueError(f"'{name}' 输入框未找到或已销毁。")
         try:
             return float(entry_widget.get())
@@ -204,7 +265,7 @@ class SingleQuantityCalculator(ctk.CTkFrame):
     def get_float_list_input(self, key, name):
         """从 self.entry_widgets 字典中获取Entry并尝试解析为浮点数列表"""
         entry_widget = self.entry_widgets.get(key)
-        if not entry_widget or not entry_widget.winfo_exists(): # 检查组件是否存在
+        if not entry_widget or not entry_widget.winfo_exists():
             raise ValueError(f"'{name}' 输入框未找到或已销毁。")
         try:
             return parse_float_list(entry_widget.get())
@@ -270,7 +331,6 @@ class SingleQuantityCalculator(ctk.CTkFrame):
                 
                 final_uncertainty = calculate_combined_uncertainty(u_A_stats, u_B_instrument)
 
-            # 调用新的格式化函数
             formatted_value, formatted_uncertainty = format_uncertainty_and_value(final_measurement_value, final_uncertainty)
 
             self.result_value_label.configure(text=f"测量值: {formatted_value}")
