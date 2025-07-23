@@ -167,19 +167,11 @@ class SingleQuantityCalculator(ctk.CTkFrame):
             self.entry_widgets['min_division'].grid(row=row_idx, column=1, padx=10, pady=5, sticky="w")
             row_idx += 1
             
-<<<<<<< HEAD
-            # 仪器的不确定度限值 (for U_B2) - 单次测量也可能需要
-            self.instrument_uncertainty_limit_label = ctk.CTkLabel(self.measurement_options_frame, text="仪器的不确定度限值:", font=("Arial", 16))
-            self.instrument_uncertainty_limit_label.grid(row=row_idx, column=0, padx=5, pady=5, sticky="w")
-            self.entry_widgets['instrument_uncertainty_limit'] = ctk.CTkEntry(self.measurement_options_frame, width=120)
-            self.entry_widgets['instrument_uncertainty_limit'].grid(row=row_idx, column=1, padx=5, pady=5, sticky="w")
-=======
             # --- 仪器的不确定度限值 (for U_B2) ---
             self.instrument_uncertainty_limit_label = ctk.CTkLabel(self.measurement_options_frame, text="仪器的不确定度限值:", font=("Arial", 15))
             self.instrument_uncertainty_limit_label.grid(row=row_idx, column=0, padx=10, pady=5, sticky="w")
             self.entry_widgets['instrument_uncertainty_limit'] = ctk.CTkEntry(self.measurement_options_frame, width=180, height=32, font=("Arial", 15))
             self.entry_widgets['instrument_uncertainty_limit'].grid(row=row_idx, column=1, padx=10, pady=5, sticky="w")
->>>>>>> dev
             row_idx += 1
 
 
@@ -199,19 +191,11 @@ class SingleQuantityCalculator(ctk.CTkFrame):
             self.entry_widgets['t_factor'].grid(row=row_idx, column=1, padx=10, pady=5, sticky="w")
             row_idx += 1
             
-<<<<<<< HEAD
-            # 仪器的不确定度限值 (U_B2)
-            self.instrument_uncertainty_limit_label = ctk.CTkLabel(self.measurement_options_frame, text="仪器的不确定度限值:", font=("Arial", 16))
-            self.instrument_uncertainty_limit_label.grid(row=row_idx, column=0, padx=5, pady=5, sticky="w")
-            self.entry_widgets['instrument_uncertainty_limit'] = ctk.CTkEntry(self.measurement_options_frame, width=120)
-            self.entry_widgets['instrument_uncertainty_limit'].grid(row=row_idx, column=1, padx=5, pady=5, sticky="w")
-=======
             # --- 仪器的不确定度限值 (U_B2) ---
             self.instrument_uncertainty_limit_label = ctk.CTkLabel(self.measurement_options_frame, text="仪器的不确定度限值:", font=("Arial", 15))
             self.instrument_uncertainty_limit_label.grid(row=row_idx, column=0, padx=10, pady=5, sticky="w")
             self.entry_widgets['instrument_uncertainty_limit'] = ctk.CTkEntry(self.measurement_options_frame, width=180, height=32, font=("Arial", 15))
             self.entry_widgets['instrument_uncertainty_limit'].grid(row=row_idx, column=1, padx=10, pady=5, sticky="w")
->>>>>>> dev
             row_idx += 1
 
         # --- 分布类型 (通用) ---
